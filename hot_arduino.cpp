@@ -1,75 +1,108 @@
 
+#include <Wire.h>
+const byte bufferSize = 32;
+const int parallelPins[8] = {2,3,4,5,6,7,8,9};
+char commandBuffer[bufferSize];
 
-const byte numChars = 32;
-char receivedChars[numChars];
-char flagByte = 'c';
+char IOflag = 'c';
 boolean newData = false;
-boolean toggle = true;
 using namespace std;
 
-enum commands{
+enum IOCommands{
     pinOUT='o',
     pinIN='i',
+    parallelOUT='O',
+    parallelIN='I',
     pinHigh='h',
     pinLow='l',
     pinSet='s',
+    parallelSet='S',
+    parallelRead='p',
     pinReadDigital='r',
     pinReadAnalog='R'
 };
 
 void setup() {
     Serial.begin(9600);
-    pinMode(6, OUTPUT);
     Serial.println("<Arduino is ready>");
 }
 
 void loop() {
     recvWithStartEndMarkers();
-    if (newData == true) {
-        processSerialCommand();
-        newData = false;
-        byte ran = random(255);
-        Serial.print("<cs&");
-        Serial.write(ran);
-        Serial.print(">");
-    }
+    processIOCommands();
 }
 
-void processSerialCommand(){
-    char firstByte = receivedChars[0];
-    if (firstByte == flagByte){
-        char commandByte = receivedChars[1];
-        int targetByte = receivedChars[2] - 32;
-        int argumentByte = receivedChars[3];
-        switch (commandByte) {
-            case pinOUT:
-                pinMode(targetByte, OUTPUT);
-                break;
-            case pinIN:
-                pinMode(targetByte, INPUT);
-                break;
-            case pinHigh:
-                digitalWrite(targetByte, HIGH);
-                break;
-            case pinLow:
-                digitalWrite(targetByte, LOW);
-                break;
-            case pinSet:
-                analogWrite(targetByte, argumentByte);
-                break;
-            case pinReadDigital: {
+void processIOCommands(){
+    if (newData) {
+        char firstByte = commandBuffer[0];
+        if (firstByte == IOflag) {
+            char commandByte = commandBuffer[1];
+            int targetByte = commandBuffer[2] - 32;
+            byte argumentByte = commandBuffer[3];
+            switch (commandByte) {
+                case pinOUT:
+                    pinMode(targetByte, OUTPUT);
+                    break;
+                case pinIN:
+                    pinMode(targetByte, INPUT);
+                    break;
+                case parallelOUT: {
+                    for(int i = 0; i < 8; i++){
+                        pinMode(parallelPins[i], OUTPUT);
+                    }
+                }
+                    break;
+                case parallelIN: {
+                    for(int i = 0; i < 8; i++){
+                        pinMode(parallelPins[i], INPUT);
+                    }
+                }
+                    break;
+                case pinHigh:
+                    digitalWrite(targetByte, HIGH);
+                    break;
+                case pinLow:
+                    digitalWrite(targetByte, LOW);
+                    break;
+                case pinSet:
+                    analogWrite(targetByte, argumentByte);
+                    break;
+                case parallelSet: {
+                    for(int i = 0; i < 8; i++){
+                        digitalWrite(parallelPins[i], (bitRead(targetByte, i)) ? HIGH : LOW);
+                    }
+                }
+                    break;
+                case parallelRead: {
+                    byte parallelBuffer = 0b00000000;
+                    for(int i = 0; i < 8; i++){
+                        int value = (digitalRead(parallelPins[i])) ? 1 : 0;
+                        bitWrite(parallelBuffer, i, value);
+                    }
+                    Serial.print("<t");
+                    Serial.print(parallelBuffer);
+                    Serial.print(">");
+                }
+                    break;
+                case pinReadDigital: {
                     int value = (digitalRead(targetByte) == HIGH) ? 1 : 0;
+                    Serial.print("<t");
                     Serial.print(value);
+                    Serial.print(">");
                 }
-                break;
-            case pinReadAnalog: {
+                    break;
+                case pinReadAnalog: {
                     int value = analogRead(targetByte);
+                    Serial.print("<t");
                     Serial.write(value);
+                    Serial.print(">");
                 }
-            break;
-            default:
-                break;
+                    break;
+                default:
+                    break;
+            }
         }
+        newData = false;
     }
 }
 
@@ -85,14 +118,14 @@ void recvWithStartEndMarkers() {
 
         if (recvInProgress == true) {
             if (rc != endMarker) {
-                receivedChars[ndx] = rc;
+                commandBuffer[ndx] = rc;
                 ndx++;
-                if (ndx >= numChars) {
-                    ndx = numChars - 1;
+                if (ndx >= bufferSize) {
+                    ndx = bufferSize - 1;
                 }
             }
             else {
-                receivedChars[ndx] = '\0'; // terminate the string
+                commandBuffer[ndx] = '\0'; // terminate the string
                 recvInProgress = false;
                 ndx = 0;
                 newData = true;
