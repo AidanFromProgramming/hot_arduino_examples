@@ -25,11 +25,17 @@ enum IOCommands{
 void setup() {
     Serial.begin(9600);
     Serial.println("<Arduino is ready>");
+    Serial.print("<cO>");
 }
 
 void loop() {
-    recvWithStartEndMarkers();
+    updateSerialReceive();
     processIOCommands();
+    Serial.print("<cS");
+    byte rand = random(0,254);
+    Serial.write(rand);
+    Serial.print(">");
+    delay(1000);
 }
 
 void processIOCommands(){
@@ -42,6 +48,7 @@ void processIOCommands(){
             switch (commandByte) {
                 case pinOUT:
                     pinMode(targetByte, OUTPUT);
+                    Serial.print("<i");
                     break;
                 case pinIN:
                     pinMode(targetByte, INPUT);
@@ -106,7 +113,7 @@ void processIOCommands(){
     }
 }
 
-void recvWithStartEndMarkers() {
+void updateSerialReceive() {
     static boolean recvInProgress = false;
     static byte ndx = 0;
     char startMarker = '<';
