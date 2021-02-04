@@ -25,17 +25,17 @@ enum IOCommands{
 void setup() {
     Serial.begin(9600);
     Serial.println("<Arduino is ready>");
-    Serial.print("<cO>");
+    //Serial.print("<cO>");
 }
 
 void loop() {
     updateSerialReceive();
     processIOCommands();
-    Serial.print("<cS");
-    byte rand = random(0,254);
-    Serial.write(rand);
-    Serial.print(">");
-    delay(1000);
+//    Serial.print("<cS");
+//    byte rand = random(0,254);
+//    Serial.write(rand);
+//    Serial.print(">");
+//    delay(1000);
 }
 
 void processIOCommands(){
